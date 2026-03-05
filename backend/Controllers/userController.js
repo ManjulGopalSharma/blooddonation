@@ -7,40 +7,41 @@ import generateToken from "../Utils/generateToken.js";
 const registerUser=async(req ,res)=>{
   try{
     const {role}=req.body;
+    console.log(role);
     let user;
     if(role==='donor'){
-      const{userName,email,password,phoneNumber,dateOfBirth,gender,bloodGroup}=req.body;
-      if(!userName||!email||!password||!phoneNumber||!dateOfBirth||!gender||!bloodGroup){
+      const{userName,email,password,phoneNumber,dateOfBirth,gender,bloodGroup,province, district, city}=req.body;
+      if(!userName||!email||!password||!phoneNumber||!dateOfBirth||!gender||!bloodGroup||!province||!district||!city){
         return res.status(400).json({message:'Missing donor fields'});
       }
       const existingDonor=await Donor.findOne({email});
       if(existingDonor)return res.status(400).json({message:'Donor already exists'});
       const hashedPassword=await bcrypt.hash(password,10);
-      user=await Donor.create({role,userName,email,password:hashedPassword,phoneNumber,dateOfBirth,gender,bloodGroup});
+      user=await Donor.create({role,userName,email,password:hashedPassword,phoneNumber,dateOfBirth,gender,bloodGroup,province, district, city});
 
     }
     else if(role==='hospital'){
-      const {hospitalName,email,password,phoneNumber,registrationNumber,contactPersonName,contactPersonNumber,address}=req.body;
-      if(!hospitalName||!email||!password||!phoneNumber||!registrationNumber||!contactPersonName||!contactPersonNumber||!address){
+      const {hospitalName,email,password,phoneNumber,registrationNumber,contactPersonName,contactPersonNumber,province, district, city,streetAddress}=req.body;
+      if(!hospitalName||!email||!password||!phoneNumber||!registrationNumber||!contactPersonName||!contactPersonNumber||!province||!district||!city||!streetAddress){
          return res.status(403).json({message:'missing hospital field'});
       }
       const existingHospital = await Hospital.findOne({ email });
       if(existingHospital) return res.status(400).json({message:'Hospital already exists'});
       const hashedPassword=await bcrypt.hash(password,10);
-      user=await Hospital.create({role,hospitalName,email,password:hashedPassword,phoneNumber,registrationNumber,contactPersonName,contactPersonNumber,address});
+      user=await Hospital.create({role,hospitalName,email,password:hashedPassword,phoneNumber,registrationNumber,contactPersonName,contactPersonNumber,province, district, city,streetAddress});
 
       
 
     }
     else if(role==='organization'){
-      const {organizationName,email,password,phoneNumber,registrationNumber,contactPersonName,contactPersonNumber,address}=req.body;
-      if(!organizationName||!email||!password||!phoneNumber||!registrationNumber||!contactPersonName||!contactPersonNumber||!address){
+      const {organizationName,email,password,phoneNumber,registrationNumber,contactPersonName,contactPersonNumber,province, district, city,streetAddress}=req.body;
+      if(!organizationName||!email||!password||!phoneNumber||!registrationNumber||!contactPersonName||!contactPersonNumber||!province||!district||!city||!streetAddress){
          return res.status(403).json({message:'missing organization field'});
       }
       const existingOrganization = await Organization.findOne({ email });
       if(existingOrganization) return res.status(400).json({message:'Organization already exists'});
       const hashedPassword=await bcrypt.hash(password,10);
-      user=await Organization.create({role,organizationName,email,password:hashedPassword,phoneNumber,registrationNumber,contactPersonName,contactPersonNumber,address});
+      user=await Organization.create({role,organizationName,email,password:hashedPassword,phoneNumber,registrationNumber,contactPersonName,contactPersonNumber,province, district, city,streetAddress});
 
       
 

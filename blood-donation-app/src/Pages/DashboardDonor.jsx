@@ -1,44 +1,28 @@
 import Logo from "../assets/bloodDrop.png";
 import { User, Bell,Droplets, CircleUserRound, Menu, Calendar, MapPin, ChevronRight, Clock } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import MapComponent from "../Components/MapComponent";
 import GetLocation from'../Pages/GetLocation';
+import axios from 'axios';
 
 
 export default function DashboardDonor() {
   GetLocation();
   const [notificationOpen, setNotificationOpen] = useState(false);
   const navigate = useNavigate();
-
-  
-  const camps = [
-    { 
-        id: 1, 
-        name: "Camp -1", 
-        date: "Jan 15, 2026", 
-        time: "09:00 AM - 04:00 PM",
-        location: "Koteshwor", 
-        hospital: "City General Hospital" 
-    },
-    { 
-        id: 2, 
-        name: "Teaching Hospital Camp", 
-        date: "Jan 20, 2026", 
-        time: "10:00 AM - 02:00 PM",
-        location: "Main Medical Hall", 
-        hospital: " Teaching Hospital" 
-    },
-    { 
-        id: 3, 
-        name: "Community Youth Club", 
-        date: "Feb 02, 2026", 
-        time: "08:00 AM - 12:00 PM",
-        location: "Balkumari", 
-        hospital: "Red Cross Society" 
-    },
-  ];
+useEffect(() => {
+  const getCamps = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/dashboard-hospital/blood-camp');
+      console.log(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  getCamps();
+}, []);
 
   const notificationClicked = () => setNotificationOpen(prev => !prev);
   const navigateProfile = () => navigate('/profile');
@@ -77,7 +61,7 @@ export default function DashboardDonor() {
           </div>
         </div> 
 
-        {/* Section 2: Blood Donation Camps Section */}
+        {/*Blood Donation Camps Section */}
         <section className="max-w-6xl mx-auto p-5 md:p-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div>

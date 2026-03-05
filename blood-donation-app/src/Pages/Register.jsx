@@ -3,9 +3,100 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as Yup from "yup";
 import toast, { Toaster } from "react-hot-toast";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useState ,useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+
+const nepalData = {
+  "Koshi Province": {
+    "Taplejung": ["Taplejung", "Phungling", "Sidingba"],
+    "Sankhuwasabha": ["Chainpur", "Khandbari", "Madi"],
+    "Solukhumbu": ["Salleri", "Phaplu", "Namche"],
+    "Okhaldhunga": ["Okhaldhunga", "Siddhicharan"],
+    "Khotang": ["Diktel", "Halesi", "Khotehang"],
+    "Bhojpur": ["Bhojpur", "Shadananda"],
+    "Dhankuta": ["Dhankuta", "Pakhribas"],
+    "Terhathum": ["Myanglung", "Laligurans"],
+    "Ilam": ["Ilam", "Mai", "Suryodaya"],
+    "Jhapa": ["Birtamod", "Bhadrapur", "Mechinagar", "Damak", "Kankai"],
+    "Morang": ["Biratnagar", "Sundar Haraicha", "Urlabari", "Pathari"],
+    "Sunsari": ["Dharan", "Itahari", "Inaruwa", "Duhabi"],
+  },
+  "Madhesh Province": {
+    "Saptari": ["Rajbiraj", "Kanchanrup", "Shambhunath"],
+    "Siraha": ["Lahan", "Siraha", "Golbazar"],
+    "Dhanusha": ["Janakpur", "Dhalkebar", "Mithila"],
+    "Mahottari": ["Jaleshwar", "Bardibas", "Gaur"],
+    "Sarlahi": ["Malangwa", "Haripur", "Ishworpur"],
+    "Rautahat": ["Gaur", "Chandrapur", "Brindaban"],
+    "Bara": ["Kalaiya", "Simraungadh", "Nijgadh"],
+    "Parsa": ["Birgunj", "Pokhariya", "Bahudarmai"],
+  },
+  "Bagmati Province": {
+    "Kathmandu": ["Kathmandu", "Kirtipur", "Kageshwori", "Tokha", "Budhanilkantha"],
+    "Lalitpur": ["Lalitpur", "Godawari", "Mahalaxmi", "Konjyosom"],
+    "Bhaktapur": ["Bhaktapur", "Changunarayan", "Madhyapur Thimi", "Suryabinayak"],
+    "Kavrepalanchok": ["Dhulikhel", "Banepa", "Panauti", "Namobuddha"],
+    "Sindhupalchok": ["Chautara", "Bahrabise", "Melamchi"],
+    "Dolakha": ["Charikot", "Jiri", "Bigu"],
+    "Ramechhap": ["Manthali", "Ramechhap", "Umakunda"],
+    "Sindhuli": ["Sindhuli", "Kamalamai", "Dudhauli"],
+    "Makwanpur": ["Hetauda", "Thaha", "Raksirang"],
+    "Rasuwa": ["Rasuwa", "Kalika", "Gosaikunda"],
+    "Nuwakot": ["Bidur", "Belkotgadhi", "Suryagadhi"],
+    "Dhading": ["Nilkantha", "Dhading", "Jwalamukhi"],
+    "Chitwan": ["Bharatpur", "Ratnanagar", "Madi", "Rapti"],
+  },
+  "Gandaki Province": {
+    "Kaski": ["Pokhara", "Annapurna", "Machhapuchchhre", "Rupa"],
+    "Tanahun": ["Damauli", "Bhanu", "Shuklagandaki"],
+    "Syangja": ["Syangja", "Galyang", "Waling"],
+    "Lamjung": ["Besishahar", "Sundarbazar", "Rainas"],
+    "Gorkha": ["Gorkha", "Palungtar", "Barpak Sulikot"],
+    "Manang": ["Chame", "Narphu", "Narpabhumisame"],
+    "Mustang": ["Jomsom", "Lomanthang", "Thasang"],
+    "Myagdi": ["Baglung", "Beni", "Mangala"],
+    "Baglung": ["Baglung", "Dhorpatan", "Jaimini"],
+    "Parbat": ["Kushma", "Phalewas", "Modi"],
+    "Nawalpur": ["Kawasoti", "Bulingtar", "Madhyabindu"],
+  },
+  "Lumbini Province": {
+    "Rupandehi": ["Butwal", "Siddharthanagar", "Tilottama", "Sainamaina"],
+    "Kapilvastu": ["Kapilvastu", "Banganga", "Buddhabhumi"],
+    "Arghakhanchi": ["Sandhikharka", "Shitganga", "Bhumikasthan"],
+    "Gulmi": ["Tamghas", "Musikot", "Resunga"],
+    "Palpa": ["Tansen", "Rampur", "Rambha"],
+    "Nawalparasi West": ["Sunwal", "Palhinandan", "Pratappur"],
+    "Dang": ["Tulsipur", "Ghorahi", "Lamahi"],
+    "Banke": ["Nepalgunj", "Narainapur", "Rapti Sonari"],
+    "Bardiya": ["Gulariya", "Thakurbaba", "Rajapur"],
+    "Pyuthan": ["Pyuthan", "Sworgadwary", "Mallarani"],
+    "Rolpa": ["Rolpa", "Runtigadhi", "Lungri"],
+  },
+  "Karnali Province": {
+    "Surkhet": ["Birendranagar", "Bheriganga", "Lekbesi"],
+    "Dailekh": ["Narayan", "Dullu", "Chamunda Bindrasaini"],
+    "Jajarkot": ["Bheri", "Chhedagad", "Barekot"],
+    "Dolpa": ["Thulibheri", "Tripurasundari", "Dolpo Buddha"],
+    "Humla": ["Simkot", "Chankheli", "Sarkegad"],
+    "Jumla": ["Chandannath", "Tatopani", "Sinja"],
+    "Kalikot": ["Khandachakra", "Pachaljaharakot", "Tilagufa"],
+    "Mugu": ["Khatyad", "Mugum Karmarong", "Chhayanath Rara"],
+    "Salyan": ["Bangad Kupinde", "Sharada", "Kapurkot"],
+    "Rukum West": ["Musikot", "Aathbiskot", "Sanibhumi"],
+  },
+  "Sudurpashchim Province": {
+    "Kailali": ["Dhangadhi", "Tikapur", "Godawari", "Bhajani"],
+    "Kanchanpur": ["Bhimdatta", "Shuklaphanta", "Belauri"],
+    "Dadeldhura": ["Amargadhi", "Aalital", "Navadurga"],
+    "Doti": ["Dipayal Silgadhi", "Shikhar", "Purbichauki"],
+    "Achham": ["Mangalsen", "Chaurpati", "Ramaroshan"],
+    "Bajura": ["Budhinanda", "Tribeni", "Himali"],
+    "Bajhang": ["Jayaprithvi", "Bungal", "Thalara"],
+    "Baitadi": ["Dasharathchand", "Patan", "Sigas"],
+    "Darchula": ["Darchula", "Shailyashikhar", "Lekam"],
+  },
+};
 
 export default function Register() {
   const navigate = useNavigate();
@@ -13,11 +104,12 @@ export default function Register() {
   const [cshow, csetShow] = useState(true);
   const [show, setShow] = useState(true);
 
-  const onSubmit = async(data) => {
-    try{
-      let payload={};
-      if(userType==='donor'){
-        payload={ 
+const onSubmit = async (data) => {
+  try {
+    let payload = {};
+
+    if (userType === "donor") {
+      payload = {
         role: "donor",
         userName: data.fullName,
         email: data.email,
@@ -26,8 +118,12 @@ export default function Register() {
         dateOfBirth: data.dateofbirth,
         gender: data.gender,
         bloodGroup: data.blood,
+        province: data.province,    // ← replaced address
+        district: data.district,    // ←
+        city: data.city,            // ←
       };
-      } else if (userType === "hospital") {
+
+    } else if (userType === "hospital") {
       payload = {
         role: "hospital",
         hospitalName: data.hospitalName,
@@ -37,8 +133,12 @@ export default function Register() {
         registrationNumber: data.hregistration,
         contactPersonName: data.hcontactName,
         contactPersonNumber: data.hcontactNumber,
-        address: data.hlocation,
+        province: data.province,       // ← replaced address
+        district: data.district,       // ←
+        city: data.city,               // ←
+        streetAddress: data.streetAddress, // ← hospital needs this extra
       };
+
     } else if (userType === "organization") {
       payload = {
         role: "organization",
@@ -49,128 +149,134 @@ export default function Register() {
         registrationNumber: data.oregistration,
         contactPersonName: data.ocontactName,
         contactPersonNumber: data.ocontactNumber,
-        address: data.olocation,
+        province: data.province,       // ← replaced address
+        district: data.district,       // ←
+        city: data.city,               // ←
+        streetAddress: data.streetAddress, // ← organization needs this too
       };
     }
-      
-        const response = await axios.post(
-        "http://localhost:8000/register",
-        payload, // send the entire form data
-        { withCredentials: true } // for the cookies
-      );
-      console.log("Backend response:", response.data);
-      toast.success(response.data.message||'Signup successful');
 
+    const response = await axios.post(
+      "http://localhost:8000/register",
+      payload,
+      { withCredentials: true }
+    );
 
-      reset();
-    }
-  catch(err){
+    console.log("Backend response:", response.data);
+    toast.success(response.data.message || "Signup successful");
+    reset();
+
+  } catch (err) {
     console.error(err.response?.data?.message || err.message);
-      alert(err.response?.data?.message || "Something went wrong");
-
+    alert(err.response?.data?.message || "Something went wrong");
   }
-
-   
-  };
+};
 
 
+ const donorSchema = Yup.object().shape({
+  fullName: Yup.string().required("Enter full name"),
+  email: Yup.string()
+    .email("Invalid email format")
+    .required("Enter email address"),
+  password: Yup.string()
+    .min(6, "Password must be at least 6 characters")
+    .required("Enter password"),
+  confirmPassword: Yup.string()
+    .required("Enter confirm password")
+    .oneOf([Yup.ref("password")], "Password and confirm password must match"),
+  phone: Yup.string()
+    .required("Enter phone number")
+    .matches(/^[0-9]{10}$/, "Phone number must be 10 digits"),
+  dateofbirth: Yup.date().required("Enter date of birth"),
+  gender: Yup.string().required("Choose your gender"),
+  blood: Yup.string().required("Choose your blood group"),
+  province: Yup.string().required("Province is required"),      // ← new
+  district: Yup.string().required("District is required"),      // ← new
+  city: Yup.string().required("City is required"),              // ← new
+  agreed: Yup.boolean()
+    .oneOf([true], "You must agree that the information is correct")
+    .required("Agreement is required"),
+});
 
+const hospitalSchema = Yup.object().shape({
+  hospitalName: Yup.string().required("Enter hospital name"),
+  hemail: Yup.string()
+    .email("Invalid email format")
+    .required("Enter email address"),
+  hpassword: Yup.string()
+    .min(6, "Password must be at least 6 characters")
+    .required("Enter password"),
+  hconfirmPassword: Yup.string()
+    .required("Enter confirm password")
+    .oneOf([Yup.ref("hpassword")], "Password and confirm password must match"),
+  hphone: Yup.string()
+    .required("Enter phone number")
+    .matches(/^[0-9]{10}$/, "Phone number must be 10 digits"),
+  hregistration: Yup.string().required("Enter hospital registration number"),
+  hcontactName: Yup.string().required("Enter contact person name"),
+  hcontactNumber: Yup.string()
+    .required("Enter contact number")
+    .matches(/^[0-9]{10}$/, "Phone number must be 10 digits"),
+  province: Yup.string().required("Province is required"),          // ← replaced hlocation
+  district: Yup.string().required("District is required"),          // ← new
+  city: Yup.string().required("City is required"),                  // ← new
+  streetAddress: Yup.string().required("Enter street address"),     // ← new
+  agreeh: Yup.boolean()
+    .oneOf([true], "You must agree that the information is correct")
+    .required("Agreement is required"),
+});
 
-  const donorSchema = Yup.object().shape({
-    fullName: Yup.string().required("Enter full name"),
-    email: Yup.string()
-      .email("Invalid email format")
-      .required("Enter email addresss"),
-    password: Yup.string()
-      .min(6, "Password must be at least 6 characters")
-      .required("Enter password"),
-    confirmPassword: Yup.string()
-      .required("Enter confirm password")
-      .oneOf([Yup.ref("password")], "password and confirm password must match"),
-    phone: Yup.string()
-      .required("Enter phone number")
-      .matches(/^[0-9]{10}$/,"Phone number should be number ", "Phone number must be 10 digits"),
-    dateofbirth: Yup.date("Enter valid date").required("Enter date of birth"),
-    gender: Yup.string().required("Choose your gender"),
-    blood:Yup.string().required("Choose your blood group"),
-    agreed: Yup.boolean()
-      .oneOf([true], "You must agree that the information is correct")
-      .required("Agreement is required"),
-  });
+const organizationSchema = Yup.object().shape({
+  organizationName: Yup.string().required("Enter organization name"),
+  oemail: Yup.string()
+    .email("Invalid email format")
+    .required("Enter email address"),
+  opassword: Yup.string()
+    .min(6, "Password must be at least 6 characters")
+    .required("Enter password"),
+  oconfirmPassword: Yup.string()
+    .required("Enter confirm password")
+    .oneOf([Yup.ref("opassword")], "Password and confirm password must match"),
+  ophone: Yup.string()
+    .required("Enter phone number")
+    .matches(/^[0-9]{10}$/, "Phone number must be 10 digits"),
+  oregistration: Yup.string().required("Enter organization registration number"),
+  ocontactName: Yup.string().required("Enter contact person name"),
+  ocontactNumber: Yup.string()
+    .required("Enter contact number")
+    .matches(/^[0-9]{10}$/, "Phone number must be 10 digits"),
+  province: Yup.string().required("Province is required"),          // ← replaced olocation
+  district: Yup.string().required("District is required"),          // ← new
+  city: Yup.string().required("City is required"),                  // ← new
+  streetAddress: Yup.string().required("Enter street address"),     // ← new
+  agreeo: Yup.boolean()
+    .oneOf([true], "You must agree that the information is correct")
+    .required("Agreement is required"),
+});
 
-  const hospitalSchema = Yup.object().shape({
-    hospitalName: Yup.string().required("Enter hospital name"),
-    hemail: Yup.string()
-      .email("Invalid email format")
-      .required("Enter email address"),
-    hpassword: Yup.string()
-      .min(6, "Password must be at least 6 characters")
-      .required("Enter password"),
-    hconfirmPassword: Yup.string()
-      .required("Enter confirm password")
-      .oneOf([Yup.ref("hpassword")], "password and confirm password must match"),
-    hphone: Yup.string()
-      .required("Enter phone number")
-      .matches(/^[0-9]{10}$/,"Phone number should be number ", "Phone number must be 10 digits"),
-    hregistration: Yup.string().required("Enter hospital registration number"),
-    hcontactName: Yup.string().required("Enter contact person name"),
-    hcontactNumber: Yup.string()
-      .required("Enter phone number")
-      .matches(/^[0-9]{10}$/, "Phone number should be number ","Phone number must be 10 digits"),
-    hlocation: Yup.string().required("Enter location of hospital"),
-    agreeh: Yup.boolean()
-      .oneOf([true], "You must agree that the information is correct")
-      .required("Agreement is required"),
-  });
+const chooseSchema = (userType) => {
+  switch (userType) {
+    case "donor":       return donorSchema;
+    case "hospital":    return hospitalSchema;
+    case "organization": return organizationSchema;
+    default:            return Yup.object({});
+  }
+};
 
-  const organizationSchema = Yup.object().shape({
-    organizationName: Yup.string().required("Enter organization name"),
-    oemail: Yup.string()
-      .email("Invalid email format")
-      .required("Enter email address"),
-    opassword: Yup.string()
-      .min(6, "Password must be at least 6 characters")
-      .required("Enter password"),
-    oconfirmPassword: Yup.string()
-      .required("Enter confirm password")
-      .oneOf([Yup.ref("opassword")], "password and confirm password must match"),
-    ophone: Yup.string('')
-      .required("Enter phone number")
-      .matches(/^[0-9]{10}$/, "Phone number should be number ","Phone number must be 10 digits"),
-    oregistration: Yup.string().required(
-      "Enter organization registration number"
-    ),
-    ocontactName: Yup.string().required("Enter contact person name"),
-    ocontactNumber: Yup.string()
-      .required("Enter phone number")
-      .matches(/^[0-9]{10}$/,"Phone number should be number ", "Phone number must be 10 digits"),
-    olocation: Yup.string().required("Enter location of organization"),
-    agreeo: Yup.boolean()
-      .oneOf([true], "You must agree that the information is correct")
-      .required("Agreement is required"),
-  });
-
-  const chooseSchema = (userType) => {
-    switch (userType) {
-      case "donor":
-        return donorSchema;
-      case "hospital":
-        return hospitalSchema;
-      case "organization":
-        return organizationSchema;
-      default:
-        return Yup.object({});
-    }
-  };
-
+  
   const {
     register,
-    handleSubmit,
+    handleSubmit,watch, setValue,
     reset,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(chooseSchema(userType)),
   });
+  useEffect(() => {
+  reset();
+}, [userType]);
+ const watchProvince = watch("province");
+const watchDistrict = watch("district");
   return (
     <>
       <Toaster position="top-center" reverseOrder={false} />
@@ -186,7 +292,7 @@ export default function Register() {
             }}
           />
           <h1 className="text-center font-medium text-2xl">Register</h1>
-          <label>I am a *</label>
+          <label className="text-md font-medium text-blue-900">I am a *</label>
           <div className="flex gap-5">
             <label
               className="
@@ -238,7 +344,7 @@ export default function Register() {
 
           {userType === "donor" && (
             <div>
-              <label>First Name*</label>
+              <label className="text-md font-medium text-blue-900">Full Name*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -247,7 +353,7 @@ export default function Register() {
               />
               <p className="text-red-500 text-sm">{errors.fullName?.message}</p>
 
-              <label>Email*</label>
+              <label className="text-md font-medium text-blue-900">Email*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -256,7 +362,7 @@ export default function Register() {
               />
               <p className="text-red-500 text-sm">{errors.email?.message}</p>
 
-              <label>Password*</label>
+              <label className="text-md font-medium text-blue-900">Password*</label>
               <div className=" flex relative w-full">
                 <input
                   className="w-full border p-2   rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -275,7 +381,7 @@ export default function Register() {
 
               <p className="text-red-500 text-sm">{errors.password?.message}</p>
 
-              <label>Confirm Passsword*</label>
+              <label className="text-md font-medium text-blue-900">Confirm Passsword*</label>
               <div className=" flex relative w-full">
                 <input
                   className="w-full border p-2   rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -296,7 +402,7 @@ export default function Register() {
                 {errors.confirmPassword?.message}
               </p>
 
-              <label>Phone Number*</label>
+              <label className="text-md font-medium text-blue-900">Phone Number*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -305,14 +411,14 @@ export default function Register() {
               />
               <p className="text-red-500 text-sm">{errors.phone?.message}</p>
 
-              <label>Date of birth*</label>
+              <label className="text-md font-medium text-blue-900">Date of birth*</label>
               <input
                 type="date"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
                 {...register("dateofbirth")}
               />
 
-              <label>Gender*</label>
+              <label className="text-md font-medium text-blue-900">Gender*</label>
               <div className="flex gap-4 flex-wrap">
                 <label className="flex gap-1">
                   <input
@@ -344,7 +450,7 @@ export default function Register() {
                 <p className="text-red-500 text-sm">{errors.gender?.message}</p>
               </div>
 
-              <label>Blood Group*</label>
+              <label className="text-md font-medium text-blue-900">Blood Group*</label>
               <div className="flex flex-row flex-wrap gap-4">
 
               
@@ -424,6 +530,65 @@ export default function Register() {
                 </label>
                 <p className="text-red-500 text-sm">{errors.blood?.message}</p>
                 </div>
+                 <label className="text-md font-medium text-blue-900">Address*</label>
+             {/* Province */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Province*</label>
+  <select
+    {...register("province")}
+    onChange={(e) => {
+      setValue("province", e.target.value);
+      setValue("district", "");  // reset district
+      setValue("city", "");      // reset city
+    }}
+    className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
+  >
+    <option value="">Select Province</option>
+    {Object.keys(nepalData).map((prov) => (
+      <option key={prov} value={prov}>{prov}</option>
+    ))}
+  </select>
+  <p className="text-red-500 text-sm">{errors.province?.message}</p>
+</div>
+
+{/* District */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">District*</label>
+  <select
+    {...register("district")}
+    onChange={(e) => {
+      setValue("district", e.target.value);
+      setValue("city", "");  // reset city
+    }}
+    disabled={!watchProvince}
+    className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+  >
+    <option value="">Select District</option>
+    {(nepalData[watchProvince]
+      ? Object.keys(nepalData[watchProvince])
+      : []
+    ).map((dist) => (
+      <option key={dist} value={dist}>{dist}</option>
+    ))}
+  </select>
+  <p className="text-red-500 text-sm">{errors.district?.message}</p>
+</div>
+
+{/* City */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">City / Municipality*</label>
+  <select
+    {...register("city")}
+    disabled={!watchDistrict}
+    className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+  >
+    <option value="">Select City</option>
+    {(nepalData[watchProvince]?.[watchDistrict] || []).map((city) => (
+      <option key={city} value={city}>{city}</option>
+    ))}
+  </select>
+  <p className="text-red-500 text-sm">{errors.city?.message}</p>
+</div>
 
               
 
@@ -446,7 +611,7 @@ export default function Register() {
 
           {userType === "hospital" && (
             <div>
-              <label>Hospital Name*</label>
+              <label  className="text-md font-medium text-blue-900">Hospital Name*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -457,7 +622,7 @@ export default function Register() {
                 {errors.hospitalName?.message}
               </p>
 
-              <label>Email*</label>
+              <label  className="text-md font-medium text-blue-900">Email*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -466,7 +631,7 @@ export default function Register() {
               />
               <p className="text-red-500 text-sm">{errors.hemail?.message}</p>
 
-              <label>Password*</label>
+              <label  className="text-md font-medium text-blue-900">Password*</label>
               <div className=" flex relative w-full">
                 <input
                   className="w-full border p-2   rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -487,7 +652,7 @@ export default function Register() {
                 {errors.hpassword?.message}
               </p>
 
-              <label>Confirm Passsword*</label>
+              <label  className="text-md font-medium text-blue-900">Confirm Passsword*</label>
               <div className=" flex relative w-full">
                 <input
                   className="w-full border p-2   rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -508,7 +673,7 @@ export default function Register() {
                 {errors.hconfirmPassword?.message}
               </p>
 
-              <label>Phone Number*</label>
+              <label  className="text-md font-medium text-blue-900">Phone Number*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -517,7 +682,7 @@ export default function Register() {
               />
               <p className="text-red-500 text-sm">{errors.hphone?.message}</p>
 
-              <label>Hospital Registration Number*</label>
+              <label  className="text-md font-medium text-blue-900">Hospital Registration Number*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -528,7 +693,7 @@ export default function Register() {
                 {errors.hregistration?.message}
               </p>
 
-              <label>Contact Person Name*</label>
+              <label  className="text-md font-medium text-blue-900">Contact Person Name*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -539,7 +704,7 @@ export default function Register() {
                 {errors.hcontactName?.message}
               </p>
 
-              <label>Contact Person Number*</label>
+              <label  className="text-md font-medium text-blue-900">Contact Person Number*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -550,16 +715,71 @@ export default function Register() {
                 {errors.hcontactNumber?.message}
               </p>
 
-              <label>Location*</label>
-              <input
-                type="text"
-                placeholder="Enter hospital Location"
-                className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
-                {...register("hlocation")}
-              />
-              <p className="text-red-500 text-sm">
-                {errors.hlocation?.message}
-              </p>
+              <label  className="text-md font-medium text-blue-900">Location*</label>
+              <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Province*</label>
+      <select
+        {...register("province")}
+        onChange={(e) => {
+          setValue("province", e.target.value);
+          setValue("district", "");
+          setValue("city", "");
+        }}
+        className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
+      >
+        <option value="">Select Province</option>
+        {Object.keys(nepalData).map((prov) => (
+          <option key={prov} value={prov}>{prov}</option>
+        ))}
+      </select>
+      <p className="text-red-500 text-sm">{errors.province?.message}</p>
+    </div>
+
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">District*</label>
+      <select
+        {...register("district")}
+        onChange={(e) => {
+          setValue("district", e.target.value);
+          setValue("city", "");
+        }}
+        disabled={!watchProvince}
+        className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      >
+        <option value="">Select District</option>
+        {(nepalData[watchProvince] ? Object.keys(nepalData[watchProvince]) : []).map((dist) => (
+          <option key={dist} value={dist}>{dist}</option>
+        ))}
+      </select>
+      <p className="text-red-500 text-sm">{errors.district?.message}</p>
+    </div>
+
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">City / Municipality*</label>
+      <select
+        {...register("city")}
+        disabled={!watchDistrict}
+        className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      >
+        <option value="">Select City</option>
+        {(nepalData[watchProvince]?.[watchDistrict] || []).map((city) => (
+          <option key={city} value={city}>{city}</option>
+        ))}
+      </select>
+<p className="text-red-500 text-sm">{errors.city?.message}</p>
+
+      
+    </div>
+    <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Street Address*</label>
+  <input
+    type="text"
+    placeholder="e.g. Maharajgunj Road, Kathmandu"
+    {...register("streetAddress")}
+    className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
+  />
+  <p className="text-red-500 text-sm">{errors.streetAddress?.message}</p>
+</div>
 
               <input type="checkbox" {...register("agreeh")} />
               <label className="p-1">I agree that the information provided is correct</label>
@@ -577,7 +797,7 @@ export default function Register() {
 
           {userType === "organization" && (
             <div>
-              <label>Organization Name*</label>
+              <label className="text-md font-medium text-blue-900">Organization Name*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -588,7 +808,7 @@ export default function Register() {
                 {errors.organizationName?.message}
               </p>
 
-              <label>Email*</label>
+              <label className="text-md font-medium text-blue-900">Email*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -597,7 +817,7 @@ export default function Register() {
               />
               <p className="text-red-500 text-sm">{errors.oemail?.message}</p>
 
-              <label>Password*</label>
+              <label className="text-md font-medium text-blue-900">Password*</label>
               <div className=" flex relative w-full">
                 <input
                   className="w-full border p-2   rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -618,7 +838,7 @@ export default function Register() {
                 {errors.opassword?.message}
               </p>
 
-              <label>Confirm Passsword*</label>
+              <label className="text-md font-medium text-blue-900">Confirm Passsword*</label>
               <div className=" flex relative w-full">
                 <input
                   className="w-full border p-2   rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -639,7 +859,7 @@ export default function Register() {
                 {errors.oconfirmPassword?.message}
               </p>
 
-              <label>Phone Number*</label>
+              <label className="text-md font-medium text-blue-900">Phone Number*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -648,7 +868,7 @@ export default function Register() {
               />
               <p className="text-red-500 text-sm">{errors.ophone?.message}</p>
 
-              <label>Organization Registration Number*</label>
+              <label className="text-md font-medium text-blue-900">Organization Registration Number*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -659,7 +879,7 @@ export default function Register() {
                 {errors.oregistration?.message}
               </p>
 
-              <label>Contact Person Name*</label>
+              <label className="text-md font-medium text-blue-900">Contact Person Name*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -670,7 +890,7 @@ export default function Register() {
                 {errors.ocontactName?.message}
               </p>
 
-              <label>Contact Person Number*</label>
+              <label className="text-md font-medium text-blue-900">Contact Person Number*</label>
               <input
                 type="text"
                 className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -681,22 +901,75 @@ export default function Register() {
                 {errors.ocontactNumber?.message}
               </p>
 
-              <label>Location*</label>
-              <input
-                type="text"
-                placeholder="Enter Organization Location"
-                className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
-                {...register("olocation")}
-              />
-              <p className="text-red-500 text-sm">
-                {errors.olocation?.message}
-              </p>
-              
+              <label className="text-md font-medium text-blue-900">Location*</label>
+                      <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Province*</label>
+      <select
+        {...register("province")}
+        onChange={(e) => {
+          setValue("province", e.target.value);
+          setValue("district", "");
+          setValue("city", "");
+        }}
+        className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
+      >
+        <option value="">Select Province</option>
+        {Object.keys(nepalData).map((prov) => (
+          <option key={prov} value={prov}>{prov}</option>
+        ))}
+      </select>
+      <p className="text-red-500 text-sm">{errors.province?.message}</p>
+    </div>
+
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">District*</label>
+      <select
+        {...register("district")}
+        onChange={(e) => {
+          setValue("district", e.target.value);
+          setValue("city", "");
+        }}
+        disabled={!watchProvince}
+        className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      >
+        <option value="">Select District</option>
+        {(nepalData[watchProvince] ? Object.keys(nepalData[watchProvince]) : []).map((dist) => (
+          <option key={dist} value={dist}>{dist}</option>
+        ))}
+      </select>
+      <p className="text-red-500 text-sm">{errors.district?.message}</p>
+    </div>
+
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">City / Municipality*</label>
+      <select
+        {...register("city")}
+        disabled={!watchDistrict}
+        className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      >
+        <option value="">Select City</option>
+        {(nepalData[watchProvince]?.[watchDistrict] || []).map((city) => (
+          <option key={city} value={city}>{city}</option>
+        ))}
+      </select>
+<p className="text-red-500 text-sm">{errors.city?.message}</p>
+      
+    </div>
+              <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Street Address*</label>
+  <input
+    type="text"
+    placeholder="e.g. Maharajgunj Road, Kathmandu"
+    {...register("streetAddress")}
+    className="w-full border p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600"
+  />
+  <p className="text-red-500 text-sm">{errors.streetAddress?.message}</p>
+</div>
 
               
               <input type="checkbox" {...register("agreeo")} />
               <label className="p-1">I agree that the information provided is correct</label>
-
+      
               <p className="text-red-500 text-sm">{errors.agreeo?.message}</p>
               
               <button

@@ -26,7 +26,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard-donor" element={<DashboardDonor/>}/>
-            <Route path="/dashboard-hospital" element={<DashboardHospital/>}/>
+            <Route path="/dashboard-hospital/*" element={<DashboardHospital/>}/>
 
             <Route path="/profile" element={<DonorProfile/>}/>
             <Route path="/profile/edit-profile" element={<EditProfile/>}/>
