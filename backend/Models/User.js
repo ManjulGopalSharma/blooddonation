@@ -50,6 +50,13 @@ const donorSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    lastDonated: {
+      type: Date,
+      required: false,  
+    },
+
+    donatedBlood: { type: Number, default: 0 },
+    
   },
   { timestamps: true }
 );
@@ -105,10 +112,11 @@ const hospitalSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    streetAddress: {        // ← added
+    streetAddress: {        
       type: String,
       required: true,
     },
+    
   },
   { timestamps: true }
 );

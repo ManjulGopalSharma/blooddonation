@@ -11,11 +11,11 @@ app.use(cors({
   credentials:true              
 }));
 import CONNECT_DB from './Models/db.js';
-import userRoutes from'./Routes/userRoutes.js';
+import userRoutes from'./Routes/userRoutes.js'; 
 
-const PORT=process.env.PORT||8000;
+const PORT=process.env.PORT||8000; 
 
-//connecting database
+//connecting database  
 CONNECT_DB();
 
 //routes

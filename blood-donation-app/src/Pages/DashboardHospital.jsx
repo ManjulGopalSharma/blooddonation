@@ -54,7 +54,7 @@ export default function DashboardHospital() {
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
+    <div className="flex h-screen bg-gray-50  overflow-hidden">
       <Toaster position="top-right" />
 
       {/* Mobile overlay */}
