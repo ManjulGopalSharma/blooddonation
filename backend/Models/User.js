@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
 
+// =============================================================================
+// DONOR SCHEMA
+// =============================================================================
+
 const donorSchema = new mongoose.Schema(
   {
     role: {
@@ -52,21 +56,51 @@ const donorSchema = new mongoose.Schema(
     },
     lastDonated: {
       type: Date,
-      required: false,  
+      required: false,
     },
 
-    donatedBlood: { type: Number, default: 0 },
-    
+    // ── Donation tracking (updated when attendance is marked) ──
+    donatedBlood: {
+      type: Number,
+      default: 0,
+    },
+
+    // ── ML model fields ────────────────────────────────────────
+    // These 3 fields are used by the Flask ML server to predict
+    // whether a donor is likely to respond to an emergency request.
+    // They are updated automatically every time a donor's attendance
+    // is marked at a blood donation camp.
+
+    numberOfDonation: {
+      // Total number of times this donor has donated
+      type: Number,
+      default: 0,
+    },
+    pintsDonated: {
+      // Total pints donated across all sessions
+      type: Number,
+      default: 0,
+    },
+    monthsSinceFirstDonation: {
+      // How many months since their very first donation
+      // Used to calculate avg_gap and donation_frequency in the ML model
+      type: Number,
+      default: 0,
+    },
+
     certificate: {
-  type: String,
-   default: "",
-},
-    
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );
 
 const Donor = mongoose.model("Donor", donorSchema);
+
+// =============================================================================
+// HOSPITAL SCHEMA
+// =============================================================================
 
 const hospitalSchema = new mongoose.Schema(
   {
@@ -117,16 +151,19 @@ const hospitalSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    streetAddress: {        
+    streetAddress: {
       type: String,
       required: true,
     },
-    
   },
   { timestamps: true }
 );
 
 const Hospital = mongoose.model("Hospital", hospitalSchema);
+
+// =============================================================================
+// ORGANIZATION SCHEMA
+// =============================================================================
 
 const organizationSchema = new mongoose.Schema(
   {
@@ -177,7 +214,7 @@ const organizationSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    streetAddress: {        
+    streetAddress: {
       type: String,
       required: true,
     },
