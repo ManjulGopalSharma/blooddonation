@@ -1,5 +1,3 @@
-
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,6 +21,9 @@ from sklearn.metrics import (
     classification_report
 )
 import joblib
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 # =============================================================================
 # STEP 1 — LOAD DATASET
@@ -40,7 +41,6 @@ print(f"  Missing Values: {df.isnull().sum().sum()} total")
 # =============================================================================
 # STEP 2 — DROP IRRELEVANT COLUMNS
 # =============================================================================
-
 
 df = df.drop(columns=[
     'donor_id',
@@ -60,6 +60,7 @@ print(f"  Shape after drop      : {df.shape}")
 # STEP 3 — FEATURE ENGINEERING
 # =============================================================================
 
+# Average months between donations (lower = more frequent donor)
 df['avg_gap'] = np.where(
     df['number_of_donation'] > 0,
     df['months_since_first_donation'] / df['number_of_donation'],
@@ -97,7 +98,7 @@ avg_donations = df['number_of_donation'].mean()
 df['is_frequent_donor'] = (df['number_of_donation'] > avg_donations).astype(int)
 
 print("\n" + "=" * 60)
-print(" TARGET VARIABLE")
+print("TARGET VARIABLE")
 print("=" * 60)
 print(f"  Average donations in dataset : {avg_donations:.2f}")
 print(f"  Threshold                    : number_of_donation > {avg_donations:.1f}")
@@ -106,7 +107,7 @@ print(f"  0 = Infrequent Donor → lower priority")
 print(f"\n  Class distribution:")
 print(df['is_frequent_donor'].value_counts().rename({1: 'Frequent (1)', 0: 'Infrequent (0)'}).to_string())
 vc = df['is_frequent_donor'].value_counts(normalize=True).mul(100).round(1)
-print(f"\n  Class balance: {vc.to_dict()} → perfectly balanced ")
+print(f"\n  Class balance: {vc.to_dict()} → perfectly balanced")
 
 # =============================================================================
 # STEP 5 — FEATURE CORRELATION WITH TARGET
@@ -125,16 +126,16 @@ print("FEATURE CORRELATIONS WITH TARGET")
 print("=" * 60)
 corr = df[numeric_cols + ['is_frequent_donor']].corr()['is_frequent_donor'].drop('is_frequent_donor')
 for feat, val in corr.sort_values(ascending=False).items():
-    bar  = '█' * int(abs(val) * 30)
+    if pd.isna(val):
+        print(f"  {feat:<30} NaN  (zero variance — skipped)")
+        continue
+    bar  =  int(abs(val) * 30)
     sign = '+' if val > 0 else '-'
     print(f"  {feat:<30} {sign}{abs(val):.4f}  {bar}")
-
-
 
 # =============================================================================
 # STEP 6 — SELECT FEATURES AND TARGET
 # =============================================================================
-
 
 features = [
     'months_since_first_donation',
@@ -148,7 +149,7 @@ X = df[features].copy()
 y = df['is_frequent_donor']
 
 # One-hot encode blood_group
-# drop_first=True drops A+ (reference) to avoid multicollinearity
+# drop_first=True drops one category (reference) to avoid multicollinearity
 X = pd.get_dummies(X, columns=['blood_group'], drop_first=True)
 
 print("\n" + "=" * 60)
@@ -212,7 +213,9 @@ model = LogisticRegression(
 
 model.fit(X_train_scaled, y_train)
 
-
+print("\n" + "=" * 60)
+print("STEP 9 — MODEL TRAINING")
+print("=" * 60)
 print(f"  Algorithm          : Logistic Regression")
 print(f"  Solver             : lbfgs")
 print(f"  Regularization (C) : 1.0")
@@ -241,6 +244,45 @@ for i, score in enumerate(cv_scores):
 print(f"  {'─' * 40}")
 print(f"  Mean    : {cv_scores.mean():.4f}")
 print(f"  Std Dev : {cv_scores.std():.4f}  (lower = more stable model)")
+
+from sklearn.metrics import log_loss
+
+# =============================================================================
+# EXTRA — TRACK TRAINING & VALIDATION LOSS
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("TRAINING & VALIDATION LOSS TRACKING")
+print("=" * 60)
+
+# Reinitialize model with warm_start to simulate epochs
+loss_model = LogisticRegression(
+    max_iter=1,          # one iteration at a time
+    warm_start=True,     # continue training
+    solver='lbfgs',
+    random_state=42
+)
+
+train_losses = []
+val_losses   = []
+
+epochs = 50
+
+for i in range(epochs):
+    loss_model.fit(X_train_scaled, y_train)
+
+    # Predict probabilities
+    train_probs = loss_model.predict_proba(X_train_scaled)
+    val_probs   = loss_model.predict_proba(X_test_scaled)
+
+    # Compute log loss
+    train_loss = log_loss(y_train, train_probs)
+    val_loss   = log_loss(y_test, val_probs)
+
+    train_losses.append(train_loss)
+    val_losses.append(val_loss)
+
+    print(f"Epoch {i+1:02d} → Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
 # =============================================================================
 # STEP 11 — EVALUATE ON TEST SET
@@ -291,84 +333,124 @@ for _, row in coef_df.iterrows():
 # =============================================================================
 # STEP 13 — SAVE MODEL ARTIFACTS
 # =============================================================================
+# These 3 files are loaded by app.py at server startup.
+# Must be in the same folder as app.py.
+# =============================================================================
 
 joblib.dump(model,           'model.pkl')
 joblib.dump(scaler,          'scaler.pkl')
 joblib.dump(list(X.columns), 'feature_columns.pkl')
 
+print("\n" + "=" * 60)
+print("STEP 13 — ARTIFACTS SAVED")
+print("=" * 60)
+print("  model.pkl           → trained Logistic Regression model")
+print("  scaler.pkl          → fitted StandardScaler")
+print("  feature_columns.pkl → exact feature column order")
+print("  Place all 3 files in the same folder as app.py")
 
 
 # =============================================================================
-# STEP 14 — VISUALIZATIONS (2x2 essential plots)
+# STEP 14 — VISUALIZATIONS (SEPARATE FIGURES)
 # =============================================================================
 
 plt.style.use('seaborn-v0_8-whitegrid')
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-fig.suptitle(
-    f"Blood Donor — Frequent Donor Prediction (Logistic Regression)\n"
-    f"Accuracy: {accuracy*100:.1f}%  |  AUC: {roc_auc:.3f}  |  "
-    f"Precision: {precision*100:.1f}%  |  Recall: {recall*100:.1f}%",
-    fontsize=13, fontweight='bold'
-)
 
+# -----------------------------
 # (A) ROC Curve
-ax1 = axes[0, 0]
-ax1.plot(fpr, tpr, color='crimson', lw=2.5, label=f'ROC Curve (AUC = {roc_auc:.3f})')
-ax1.plot([0, 1], [0, 1], 'k--', lw=1.2, label='Random Classifier (AUC = 0.5)')
-ax1.fill_between(fpr, tpr, alpha=0.1, color='crimson')
-ax1.set_xlabel("False Positive Rate", fontsize=11)
-ax1.set_ylabel("True Positive Rate", fontsize=11)
-ax1.set_title("ROC Curve", fontsize=12, fontweight='bold')
-ax1.legend(fontsize=9)
+# -----------------------------
+plt.figure(figsize=(7, 5))
+plt.plot(fpr, tpr, color='crimson', lw=2.5, label=f'ROC Curve (AUC = {roc_auc:.3f})')
+plt.plot([0, 1], [0, 1], 'k--', lw=1.2, label='Random Classifier (AUC = 0.5)')
+plt.fill_between(fpr, tpr, alpha=0.1, color='crimson')
+plt.xlabel("False Positive Rate", fontsize=11)
+plt.ylabel("True Positive Rate", fontsize=11)
+plt.title("ROC Curve", fontsize=12, fontweight='bold')
+plt.legend(fontsize=9)
+plt.tight_layout()
+plt.show()
 
+
+# -----------------------------
 # (B) Confusion Matrix
-ax2 = axes[0, 1]
-cm   = confusion_matrix(y_test, predictions)
+# -----------------------------
+plt.figure(figsize=(6, 5))
+cm = confusion_matrix(y_test, predictions)
 disp = ConfusionMatrixDisplay(cm, display_labels=['Infrequent', 'Frequent'])
-disp.plot(ax=ax2, colorbar=False, cmap='Reds')
-ax2.set_title("Confusion Matrix", fontsize=12, fontweight='bold')
+disp.plot(colorbar=False, cmap='Reds')
+plt.title("Confusion Matrix", fontsize=12, fontweight='bold')
+plt.tight_layout()
+plt.show()
 
+
+# -----------------------------
 # (C) Metrics Bar Chart
-ax3 = axes[1, 0]
+# -----------------------------
+plt.figure(figsize=(7, 5))
 m_names  = ['Accuracy', 'Precision', 'Recall', 'F1 Score', 'ROC AUC']
 m_values = [accuracy, precision, recall, f1, roc_auc]
 colors   = ['#1565C0', '#2E7D32', '#E65100', '#6A1B9A', '#AD1457']
-bars     = ax3.bar(m_names, m_values, color=colors, edgecolor='white', linewidth=1.5)
+
+bars = plt.bar(m_names, m_values, color=colors, edgecolor='white', linewidth=1.5)
+
 for bar, val in zip(bars, m_values):
-    ax3.text(
+    plt.text(
         bar.get_x() + bar.get_width() / 2,
         bar.get_height() + 0.01,
         f'{val:.3f}',
         ha='center', va='bottom',
         fontsize=9, fontweight='bold'
     )
-ax3.set_ylim(0, 1.15)
-ax3.set_ylabel("Score", fontsize=11)
-ax3.set_title("Model Evaluation Metrics", fontsize=12, fontweight='bold')
-ax3.tick_params(axis='x', labelsize=9)
 
+plt.ylim(0, 1.15)
+plt.ylabel("Score", fontsize=11)
+plt.title("Model Evaluation Metrics", fontsize=12, fontweight='bold')
+plt.tight_layout()
+plt.show()
+
+
+# -----------------------------
 # (D) Feature Importance
-ax4 = axes[1, 1]
+# -----------------------------
+plt.figure(figsize=(8, 6))
+
 coef_sorted = coef_df.sort_values('Coefficient')
 bar_colors  = ['#EF5350' if c < 0 else '#42A5F5' for c in coef_sorted['Coefficient']]
-ax4.barh(
+
+plt.barh(
     coef_sorted['Feature'],
     coef_sorted['Coefficient'],
-    color=bar_colors, edgecolor='white', height=0.6
+    color=bar_colors,
+    edgecolor='white',
+    height=0.6
 )
-ax4.axvline(0, color='black', linewidth=0.8, linestyle='--')
-ax4.set_xlabel("Coefficient Value", fontsize=11)
-ax4.set_title(
+
+plt.axvline(0, color='black', linewidth=0.8, linestyle='--')
+plt.xlabel("Coefficient Value", fontsize=11)
+plt.title(
     "Feature Importance (Logistic Regression Coefficients)\n"
     "Blue = increases frequent donor probability  |  Red = decreases it",
     fontsize=11, fontweight='bold'
 )
-ax4.tick_params(axis='y', labelsize=9)
 
 plt.tight_layout()
-
 plt.show()
+# -----------------------------
+# (E) Training vs Validation Loss
+# -----------------------------
+plt.figure(figsize=(7, 5))
 
+plt.plot(range(1, epochs + 1), train_losses, label='Training Loss', linewidth=2)
+plt.plot(range(1, epochs + 1), val_losses, label='Validation Loss', linewidth=2)
+
+plt.xlabel("Epochs", fontsize=11)
+plt.ylabel("Log Loss", fontsize=11)
+plt.title("Training vs Validation Loss", fontsize=12, fontweight='bold')
+plt.legend()
+plt.grid(True)
+
+plt.tight_layout()
+plt.show()
 # =============================================================================
 # FINAL SUMMARY
 # =============================================================================
@@ -376,9 +458,7 @@ plt.show()
 print("\n" + "=" * 60)
 print("TRAINING COMPLETE — FINAL SUMMARY")
 print("=" * 60)
-
 print(f"  Features used     : {X.shape[1]}")
-
 print(f"  Accuracy          : {accuracy  * 100:.2f}%")
 print(f"  Precision         : {precision * 100:.2f}%")
 print(f"  Recall            : {recall    * 100:.2f}%")
