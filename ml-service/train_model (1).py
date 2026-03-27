@@ -24,6 +24,8 @@ import joblib
 import warnings
 from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
+from sklearn.metrics import log_loss
+
 
 # =============================================================================
 # STEP 1 — LOAD DATASET
@@ -239,13 +241,12 @@ print("\n" + "=" * 60)
 print("5-FOLD CROSS-VALIDATION (on training data)")
 print("=" * 60)
 for i, score in enumerate(cv_scores):
-    bar = '█' * int(score * 20)
+    bar =  int(score * 20)
     print(f"  Fold {i+1} : {score:.4f}  {bar}")
 print(f"  {'─' * 40}")
 print(f"  Mean    : {cv_scores.mean():.4f}")
 print(f"  Std Dev : {cv_scores.std():.4f}  (lower = more stable model)")
 
-from sklearn.metrics import log_loss
 
 # =============================================================================
 # EXTRA — TRACK TRAINING & VALIDATION LOSS
@@ -346,8 +347,6 @@ print("STEP 13 — ARTIFACTS SAVED")
 print("=" * 60)
 print("  model.pkl           → trained Logistic Regression model")
 print("  scaler.pkl          → fitted StandardScaler")
-print("  feature_columns.pkl → exact feature column order")
-print("  Place all 3 files in the same folder as app.py")
 
 
 # =============================================================================
