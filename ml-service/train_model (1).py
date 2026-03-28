@@ -31,7 +31,7 @@ from sklearn.metrics import log_loss
 # STEP 1 — LOAD DATASET
 # =============================================================================
 
-df = pd.read_csv("blood donor list final wala.csv")
+df = pd.read_csv("donor_dataset.csv")
 
 print("=" * 60)
 print("DATASET OVERVIEW")
@@ -292,6 +292,22 @@ for i in range(epochs):
 predictions = model.predict(X_test_scaled)
 probs       = model.predict_proba(X_test_scaled)[:, 1]
 
+comparison_df = pd.DataFrame({
+    'Actual': y_test.values,
+    'Predicted': predictions
+})
+
+# Convert to labels (optional but better for readability)
+comparison_df['Actual_Label'] = comparison_df['Actual'].map({
+    0: 'Infrequent',
+    1: 'Frequent'
+})
+
+comparison_df['Predicted_Label'] = comparison_df['Predicted'].map({
+    0: 'Infrequent',
+    1: 'Frequent'
+})
+
 accuracy  = accuracy_score(y_test, predictions)
 precision = precision_score(y_test, predictions)
 recall    = recall_score(y_test, predictions)
@@ -307,6 +323,7 @@ print(f"  Precision : {precision * 100:.2f}%  — of predicted frequent, how man
 print(f"  Recall    : {recall    * 100:.2f}%  — of actual frequent donors, how many were found")
 print(f"  F1 Score  : {f1        * 100:.2f}%  — balance between precision and recall")
 print(f"  ROC AUC   : {roc_auc:.4f}     — 1.0 = perfect | 0.5 = random")
+print(comparison_df.head(20))
 
 print(f"\n  Detailed Classification Report:")
 print(classification_report(
@@ -314,6 +331,30 @@ print(classification_report(
     target_names=['Infrequent Donor (0)', 'Frequent Donor (1)']
 ))
 
+# =============================================================================
+# CORRECT VS INCORRECT PREDICTIONS
+# =============================================================================
+
+comparison_df['Result'] = np.where(
+    comparison_df['Actual'] == comparison_df['Predicted'],
+    'Correct',
+    'Incorrect'
+)
+
+print("\nPrediction Summary:")
+print(comparison_df['Result'].value_counts())
+
+
+# =============================================================================
+# MISCLASSIFIED CASES
+# =============================================================================
+
+misclassified = comparison_df[
+    comparison_df['Actual'] != comparison_df['Predicted']
+]
+
+print("\nMisclassified Samples:")
+print(misclassified.head(10))
 # =============================================================================
 # STEP 12 — FEATURE IMPORTANCE
 # =============================================================================
@@ -373,10 +414,9 @@ plt.show()
 # -----------------------------
 # (B) Confusion Matrix
 # -----------------------------
-plt.figure(figsize=(6, 5))
 cm = confusion_matrix(y_test, predictions)
 disp = ConfusionMatrixDisplay(cm, display_labels=['Infrequent', 'Frequent'])
-disp.plot(colorbar=False, cmap='Reds')
+disp.plot(colorbar=False, cmap='Reds')  # no plt.figure()
 plt.title("Confusion Matrix", fontsize=12, fontweight='bold')
 plt.tight_layout()
 plt.show()
@@ -447,6 +487,53 @@ plt.ylabel("Log Loss", fontsize=11)
 plt.title("Training vs Validation Loss", fontsize=12, fontweight='bold')
 plt.legend()
 plt.grid(True)
+
+plt.tight_layout()
+plt.show()
+
+# =============================================================================
+# CLEAN ACTUAL VS PREDICTED (SUBSET VIEW)
+# =============================================================================
+
+actual_vals = y_test.values
+pred_vals   = predictions
+
+# n = 80   # show only first 80 samples
+
+# plt.figure(figsize=(8,5))
+
+# plt.scatter(range(n), actual_vals[:n], label='Actual', marker='o')
+# plt.scatter(range(n), pred_vals[:n], label='Predicted', marker='x')
+
+# plt.xlabel("Sample Index")
+# plt.ylabel("Class (0 or 1)")
+# plt.title("Actual vs Predicted Donors (Scatter View)")
+
+# plt.legend()
+# plt.grid(True)
+# plt.show()
+
+# =============================================================================
+# BAR CHART — ACTUAL VS PREDICTED DISTRIBUTION
+# =============================================================================
+
+actual_counts = comparison_df['Actual_Label'].value_counts()
+pred_counts   = comparison_df['Predicted_Label'].value_counts()
+
+labels = ['Infrequent', 'Frequent']
+
+x = np.arange(len(labels))
+width = 0.35
+
+plt.figure(figsize=(7,5))
+
+plt.bar(x - width/2, actual_counts[labels], width, label='Actual')
+plt.bar(x + width/2, pred_counts[labels], width, label='Predicted')
+
+plt.xticks(x, labels)
+plt.ylabel("Number of Donors")
+plt.title("Actual vs Predicted Donor Classification")
+plt.legend()
 
 plt.tight_layout()
 plt.show()

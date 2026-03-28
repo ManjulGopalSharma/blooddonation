@@ -1,5 +1,3 @@
-
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import joblib
@@ -8,12 +6,13 @@ import numpy as np
 import os
 
 app = Flask(__name__)
-CORS(app)   # allow cross-origin requests from Express backend
-
-
+CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# =============================================================================
+# LOAD ML ARTIFACTS
+# =============================================================================
 try:
     model           = joblib.load(os.path.join(BASE_DIR, 'model.pkl'))
     scaler          = joblib.load(os.path.join(BASE_DIR, 'scaler.pkl'))
@@ -25,67 +24,73 @@ try:
     print(f"  Features: {feature_columns}")
     print("=" * 55)
 except FileNotFoundError as e:
-    print(f"\n  ERROR: {e}")
-    print("  Run train_model.py first to generate model artifacts.")
+    print(f"\nERROR: {e}")
+    print("Run train_model.py first.")
     exit(1)
 
+# =============================================================================
+# LOAD CSV — donor history lookup (FROM CODE 2)
+# =============================================================================
+CSV_FILENAME = 'donor_dataset.csv'
+csv_path = os.path.join(BASE_DIR, CSV_FILENAME)
+
+DONOR_HISTORY = {}
+try:
+    df_csv = pd.read_csv(csv_path)
+    for _, row in df_csv.iterrows():
+        email = str(row.get('email', '')).strip().lower()
+        if email:
+            DONOR_HISTORY[email] = {
+                'months_since_first_donation': int(row.get('months_since_first_donation', 0)),
+                'number_of_donation': int(row.get('number_of_donation', 0)),
+                'pints_donated': int(row.get('pints_donated', 0)),
+                'blood_group': str(row.get('blood_group', 'O+')).strip()
+            }
+    print("=" * 55)
+    print(f"CSV loaded: {len(DONOR_HISTORY)} donor records")
+    print("=" * 55)
+except FileNotFoundError:
+    print(f"WARNING: '{CSV_FILENAME}' not found")
 
 # =============================================================================
-# HELPER — Build feature row from raw donor MongoDB document
+# HELPER FUNCTIONS (COMMON)
 # =============================================================================
-
+def safe_int(value):
+    try:
+        return int(value)
+    except:
+        return 0
+    
 def build_features(donor):
-    """
-    Takes a raw donor dict from MongoDB and engineers the features
-    that the trained model expects.
+    n = int(donor.get('number_of_donation'))
+    m = int(donor.get('months_since_first_donation'))
+    p = int(donor.get('pints_donated'))
 
-    Required fields from the MongoDB donor document:
-        months_since_first_donation : int  (how many months since first donation)
-        number_of_donation          : int  (total number of donations)
-        pints_donated               : int  (total pints donated)
-        blood_group                 : str  ('A+', 'B-', 'O+', 'AB-', etc.)
-
-    Optional fields (used for identity only, not prediction):
-        email    : str
-        username : str  (or 'name')
-
-    Returns a single-row DataFrame ready for scaler.transform()
-    """
-    n = int(donor.get('number_of_donation', 0))
-    m = int(donor.get('months_since_first_donation', 0))
-    p = int(donor.get('pints_donated', 0))
-
-    # Derive behavioral features (same logic as train_model.py)
     avg_gap            = round(m / n, 4) if n > 0 else 0
     donation_frequency = round(n / m, 4) if m > 0 else 0
     avg_pints          = round(p / n, 4) if n > 0 else 0
 
     row = {
         'months_since_first_donation': m,
-        'avg_gap':                     avg_gap,
-        'donation_frequency':          donation_frequency,
-        'avg_pints_per_donation':      avg_pints,
-        'blood_group':                 donor.get('blood_group', 'A+')
+        'avg_gap': avg_gap,
+        'donation_frequency': donation_frequency,
+        'avg_pints_per_donation': avg_pints,
+        'blood_group': donor.get('blood_group', 'O+')
     }
 
     df = pd.DataFrame([row])
-
-    # One-hot encode blood_group to match training format
     df = pd.get_dummies(df, columns=['blood_group'])
 
-    # Add any missing blood group columns with 0
-    # (e.g. if this donor is A+, all other blood group columns = 0)
     for col in feature_columns:
         if col not in df.columns:
             df[col] = 0
 
-    # Enforce exact column order from training
     df = df[feature_columns]
+    df = df.fillna(0)
     return df
 
 
 def get_priority(probability):
-    """Convert probability to human-readable priority label."""
     if probability >= 0.75:
         return 'HIGH'
     elif probability >= 0.45:
@@ -95,79 +100,56 @@ def get_priority(probability):
 
 
 def score_donor(donor):
-    """
-    Score a single donor dict through the ML model.
-    Returns result dict with email, username, probability, priority.
-    """
     features_df = build_features(donor)
     scaled      = scaler.transform(features_df)
+
     prediction  = int(model.predict(scaled)[0])
     probability = round(float(model.predict_proba(scaled)[0][1]), 4)
 
     return {
-        'email':             donor.get('email', ''),
-        'username':          donor.get('username') or donor.get('name', ''),
-        'blood_group':       donor.get('blood_group', ''),
-        'probability':       probability,
+        'email': donor.get('email', ''),
+        'username': donor.get('username') or donor.get('name', ''),
+        'blood_group': donor.get('blood_group', ''),
+        'probability': probability,
         'is_frequent_donor': prediction,
-        'label':             'Frequent Donor' if prediction == 1 else 'Infrequent Donor',
-        'priority':          get_priority(probability)
+        'label': 'Frequent Donor' if prediction == 1 else 'Infrequent Donor',
+        'priority': get_priority(probability),
+        'found_in_csv': donor.get('found_in_csv', False)
     }
 
-
 # =============================================================================
-# ROUTE 1 — Health Check
-# GET /health
+# ROUTE 1 — HEALTH CHECK (COMMON)
 # =============================================================================
-# Express calls this on startup to confirm the ML server is running.
-#
-# Response:
-# {
-#     "status":  "running",
-#     "message": "Daan ML Server is active"
-# }
-# =============================================================================
-
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({
-        'status':  'running',
+        'status': 'running',
         'message': 'Daan ML Server is active',
-        'model':   'Logistic Regression — Frequent Donor Predictor',
-        'note':    'availability column not used — behavior-based prediction only'
+        'model': 'Logistic Regression — Frequent Donor Predictor',
+        'csv_donors': len(DONOR_HISTORY)
     }), 200
 
 
 # =============================================================================
-# ROUTE 2 — Predict Single Donor
-# POST /predict
+# ROUTE 2 — SINGLE DONOR 
 # =============================================================================
-# Score one specific donor by their email and donation history.
-# Used when checking a single donor's reliability score on their profile page.
-#
-
-
 @app.route('/predict', methods=['POST'])
 def predict_single():
     try:
         donor = request.get_json()
 
-        if not donor:
-            return jsonify({'error': 'Request body is empty'}), 400
-
-        # Validate required fields
         required = [
             'months_since_first_donation',
             'number_of_donation',
             'pints_donated',
             'blood_group'
         ]
+
         missing = [f for f in required if f not in donor]
         if missing:
             return jsonify({
-                'error':   'Missing required fields',
-                'missing': missing,
-                'hint':    'These fields must come from the donor MongoDB document'
+                'error': 'Missing required fields',
+                'missing': missing
             }), 400
 
         result = score_donor(donor)
@@ -178,116 +160,105 @@ def predict_single():
 
 
 # =============================================================================
-# ROUTE 3 — Predict Batch (PRIMARY EMERGENCY ROUTE)
-# POST /predict-batch
-
-
+# ROUTE 3 — BATCH (FULL DONOR OBJECTS)
+# =============================================================================
 @app.route('/predict-batch', methods=['POST'])
 def predict_batch():
     try:
         body = request.get_json()
 
-        if not body:
-            return jsonify({'error': 'Request body is empty'}), 400
+        if not body or 'donors' not in body:
+            return jsonify({'error': 'donors array is required'}), 400
 
-        if 'donors' not in body:
-            return jsonify({
-                'error': 'donors array is required',
-                'hint':  'Send { hospital_city, blood_group_needed, donors: [...] }'
-            }), 400
-
-        donors             = body.get('donors', [])
-        hospital_city      = body.get('hospital_city', '')
-        blood_group_needed = body.get('blood_group_needed', '')
-
-        print(f"\n Emergency batch request")
-        print(f"   City         : {hospital_city}")
-        print(f"   Blood needed : {blood_group_needed}")
-        print(f"   Donors sent  : {len(donors)}")
-
-        # Handle empty donor list
-        if len(donors) == 0:
-            return jsonify({
-                'hospital_city':      hospital_city,
-                'blood_group_needed': blood_group_needed,
-                'total_donors':       0,
-                'high_priority':      0,
-                'medium_priority':    0,
-                'low_priority':       0,
-                'ranked_donors':      [],
-                'message':            f'No donors found in {hospital_city}'
-            }), 200
-
-        # Score every donor
-        # If one donor has bad/missing data, skip them without crashing the batch
+        donors = body.get('donors', [])
         results = []
         skipped = 0
 
         for donor in donors:
             try:
-                result = score_donor(donor)
-                results.append(result)
-            except Exception as donor_error:
+                results.append(score_donor(donor))
+            except Exception:
                 skipped += 1
-                print(f"   ⚠ Skipped {donor.get('email', 'unknown')}: {donor_error}")
-                results.append({
-                    'email':             donor.get('email', ''),
-                    'username':          donor.get('username') or donor.get('name', ''),
-                    'blood_group':       donor.get('blood_group', ''),
-                    'probability':       0.0,
-                    'is_frequent_donor': 0,
-                    'label':             'Infrequent Donor',
-                    'priority':          'LOW',
-                    'error':             str(donor_error)
-                })
 
-        # Sort by probability — highest first
         results.sort(key=lambda x: x['probability'], reverse=True)
 
-        # Add rank numbers after sorting
         for i, r in enumerate(results):
             r['rank'] = i + 1
 
-        # Count priority tiers
-        high_count   = sum(1 for r in results if r['priority'] == 'HIGH')
-        medium_count = sum(1 for r in results if r['priority'] == 'MEDIUM')
-        low_count    = sum(1 for r in results if r['priority'] == 'LOW')
-
-        print(f"   Scored : {len(results)} donors")
-        print(f"   HIGH   : {high_count}")
-        print(f"   MEDIUM : {medium_count}")
-        print(f"   LOW    : {low_count}")
-        if skipped > 0:
-            print(f"   Skipped: {skipped} (bad/missing data)")
-
         return jsonify({
-            'hospital_city':      hospital_city,
-            'blood_group_needed': blood_group_needed,
-            'total_donors':       len(results),
-            'high_priority':      high_count,
-            'medium_priority':    medium_count,
-            'low_priority':       low_count,
-            'skipped':            skipped,
-            'ranked_donors':      results
+            'total_donors': len(results),
+            'skipped': skipped,
+            'ranked_donors': results
         }), 200
 
     except Exception as e:
-        print(f"    Server error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# =============================================================================
+# ROUTE 4 — BATCH (EMAIL BASED CSV LOOKUP) 
+# =============================================================================
+@app.route('/predict-batch-email', methods=['POST'])
+def predict_batch_email():
+    try:
+        body = request.get_json()
+
+        if not body or 'emails' not in body:
+            return jsonify({'error': 'emails array is required'}), 400
+
+        emails = body.get('emails', [])
+        results = []
+        skipped = 0
+
+        for email in emails:
+            try:
+                email_key = str(email).strip().lower()
+
+                history = DONOR_HISTORY.get(email_key, {
+                    'months_since_first_donation': 0,
+                    'number_of_donation': 0,
+                    'pints_donated': 0,
+                    'blood_group': 'O+'
+                })
+
+                donor_obj = {
+                    'email': email_key,
+                    'found_in_csv': email_key in DONOR_HISTORY,
+                    **history
+                }
+
+                results.append(score_donor(donor_obj))
+
+            except Exception:
+                skipped += 1
+
+        results.sort(key=lambda x: x['probability'], reverse=True)
+
+        for i, r in enumerate(results):
+            r['rank'] = i + 1
+
+        return jsonify({
+            'total_donors': len(results),
+            'skipped': skipped,
+            'ranked_donors': results
+        }), 200
+
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 # =============================================================================
 # RUN SERVER
 # =============================================================================
-
 if __name__ == '__main__':
     print("\n" + "=" * 55)
-    print("   Daan ML Server — Blood Donor Predictor")
+    print("Daan ML Server — Combined Version")
     print("=" * 55)
-    print("  URL    : http://localhost:5001")
-    print("  Routes :")
-    print("    GET  /health         → health check")
-    print("    POST /predict        → score single donor")
-    print("    POST /predict-batch  → score + rank batch (MAIN)")
+    print("Routes:")
+    print("GET  /health")
+    print("POST /predict")
+    print("POST /predict-batch")
+    print("POST /predict-batch-email")
     print("=" * 55 + "\n")
+
     app.run(host='0.0.0.0', port=5001, debug=True)
